@@ -2,315 +2,436 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>日幣旅遊記帳換算器</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>旅日助手 - 專業對帳版 V9</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --primary-color: #4a90e2;
-            --secondary-color: #f5f5f5;
-            --accent-color: #e74c3c;
+            --bg-color: #f7f3f0;
+            --container-bg: #ffffff;
+            --coffee-dark: #5d4037;
+            --coffee-medium: #8d6e63;
+            --soft-beige: #efebe9;
+            --primary-orange: #e67e22;
+            --light-orange: #ffe0b2;
+            --delete-red: #ff4d4f;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #f0f2f5;
-            margin: 0;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            font-family: -apple-system, "Noto Sans TC", sans-serif;
+            background-color: var(--bg-color);
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        .tab-bar {
+            width: 100%; max-width: 480px;
+            display: flex; background: var(--container-bg);
+            margin-top: 10px; border-radius: 15px 15px 0 0;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .tab-btn {
+            flex: 1; padding: 15px; border: none; background: none;
+            color: var(--coffee-medium); cursor: pointer;
+            border-bottom: 3px solid transparent; font-size: 1rem;
+        }
+        .tab-btn.active {
+            color: var(--primary-orange); border-bottom: 3px solid var(--primary-orange); font-weight: bold;
         }
 
         .container {
-            width: 100%;
-            max-width: 500px;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            padding: 20px;
-            box-sizing: border-box;
+            width: 100%; max-width: 480px;
+            background: var(--container-bg);
+            border-radius: 0 0 20px 20px;
+            box-shadow: 0 10px 25px rgba(93, 64, 55, 0.1);
+            padding: 20px; box-sizing: border-box; min-height: 90vh;
         }
 
-        /* 匯率設定區 */
-        .rate-section {
-            background: #eef6ff;
-            padding: 10px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            transition: all 0.3s;
-        }
-        .rate-section.hidden { display: none; }
-        
-        .rate-input-group {
-            display: flex;
-            gap: 10px;
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+
+        /* 頂部標題列 */
+        .header-controls {
+            display: grid;
+            grid-template-columns: 50px 1fr 50px;
             align-items: center;
+            margin-bottom: 15px;
         }
-        input[type="number"], input[type="date"] {
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            flex-grow: 1;
+        .header-controls h3 { margin: 0; font-size: 1.1rem; text-align: center; color: var(--coffee-dark); }
+        
+        .date-picker-wrapper {
+            display: flex; justify-content: center; align-items: center;
         }
+        .icon-btn { background: none; border: none; font-size: 1.6rem; cursor: pointer; padding: 0; }
+        #recordDate { position: absolute; visibility: hidden; width: 0; height: 0; }
 
-        /* 計算機/換算區 */
+        /* 螢幕顯示 */
         .calc-display {
-            background: #333;
-            color: #fff;
-            padding: 15px;
-            border-radius: 10px;
-            text-align: right;
-            margin-bottom: 15px;
+            background: #fff; padding: 15px; border-radius: 15px;
+            text-align: right; margin-bottom: 15px; border: 2px solid var(--soft-beige);
         }
-        .calc-jpy { font-size: 1.2rem; color: #aaa; }
-        .calc-twd { font-size: 2rem; font-weight: bold; color: #4ade80; }
+        .calc-twd { font-size: 0.9rem; color: var(--coffee-medium); margin-bottom: 4px; }
+        .calc-jpy { font-size: 2.6rem; font-weight: bold; color: var(--coffee-dark); line-height: 1.2; min-height: 2.6rem; }
+        .label { font-size: 0.7rem; color: #aaa; margin-right: 5px; }
 
-        .category-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        .cat-btn {
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            background: white;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .cat-btn.active {
-            background: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
-        }
-
-        /* 按鈕樣式 */
-        .btn-main {
-            width: 100%;
-            padding: 12px;
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            cursor: pointer;
-            margin-bottom: 10px;
-        }
-        .btn-toggle {
-            background: none;
-            border: 1px solid #ccc;
-            color: #666;
-            font-size: 0.8rem;
-            padding: 5px 10px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-        }
-
-        /* 紀錄表與日曆 */
-        .record-section {
-            margin-top: 20px;
-            border-top: 2px solid #eee;
-            padding-top: 15px;
-        }
-        .daily-summary {
-            background: #fff9db;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.9rem;
-        }
-        th { text-align: left; border-bottom: 1px solid #eee; padding: 8px; }
-        td { padding: 8px; border-bottom: 1px solid #fafafa; }
-
+        /* 計算機鍵盤 */
         .numpad {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 5px;
-            margin-bottom: 15px;
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px;
         }
         .numpad button {
-            padding: 15px;
-            font-size: 1.1rem;
-            border: 1px solid #eee;
-            background: #fdfdfd;
-            border-radius: 5px;
+            padding: 18px 0; border: none; border-radius: 12px;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: 0.1s;
         }
+        .numpad button:active { opacity: 0.6; transform: scale(0.95); }
+
+        .btn-num { background: var(--soft-beige); color: var(--coffee-dark); font-size: 1.5rem; font-weight: bold; }
+        .btn-func { background: #e7e0da; color: var(--coffee-medium); font-size: 1rem; font-weight: bold; }
+        .btn-op { background: var(--light-orange); color: var(--primary-orange); font-size: 1.3rem; font-weight: bold; }
+        .btn-clear { color: var(--delete-red) !important; background: #ffebeb !important; }
+
+        /* 類別與存檔 */
+        .category-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px;
+        }
+        .cat-btn {
+            padding: 12px 5px; border: 1px solid var(--soft-beige);
+            border-radius: 10px; background: #fff; color: var(--coffee-medium); font-size: 0.9rem;
+        }
+        .cat-btn.active {
+            background: var(--light-orange); color: var(--primary-orange);
+            border-color: var(--primary-orange); font-weight: bold;
+        }
+        .btn-confirm {
+            width: 100%; padding: 18px; background: var(--primary-orange);
+            color: white; border: none; border-radius: 12px;
+            font-size: 1.2rem; font-weight: bold; box-shadow: 0 4px 0 #d35400; margin-bottom: 25px;
+        }
+
+        /* 紀錄清單 */
+        .record-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 0; border-bottom: 1px solid #efebe9;
+        }
+        .record-info { flex-grow: 1; }
+        .record-jpy { font-size: 1.4rem; font-weight: bold; color: var(--coffee-dark); }
+        .record-twd { font-size: 0.8rem; color: var(--coffee-medium); }
+        .btn-del-item {
+            background: none; border: 1px solid var(--delete-red); color: var(--delete-red);
+            padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; cursor: pointer;
+        }
+
+        /* 統計頁 */
+        .summary-box {
+            background: var(--soft-beige); padding: 15px; border-radius: 15px; text-align: center; margin-bottom: 20px;
+        }
+        .date-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+        .date-tag { padding: 6px 12px; border-radius: 20px; border: 1px solid var(--coffee-medium); cursor: pointer; font-size: 0.85rem; }
+        .date-tag.selected { background: var(--primary-orange); color: white; border-color: var(--primary-orange); }
     </style>
 </head>
 <body>
 
+<div class="tab-bar">
+    <button class="tab-btn active" onclick="showView('calc', this)">日幣換算記帳</button>
+    <button class="tab-btn" onclick="showView('history', this)">支出統計</button>
+</div>
+
 <div class="container">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2 style="margin: 0;">日幣記帳助手</h2>
-        <button class="btn-toggle" onclick="toggleRate()">設定匯率</button>
-    </div>
-
-    <!-- 匯率輸入 -->
-    <div id="rateSection" class="rate-section">
-        <label>當前匯率 (1日幣 = ? 台幣)</label>
-        <div class="rate-input-group">
-            <input type="number" id="exchangeRate" value="0.215" step="0.001" oninput="updateConverted()">
-            <button onclick="toggleRate()">隱藏</button>
-        </div>
-    </div>
-
-    <!-- 顯示區 -->
-    <div class="calc-display">
-        <div class="calc-jpy">¥ <span id="jpyDisplay">0</span></div>
-        <div class="calc-twd">≈ $ <span id="twdDisplay">0</span></div>
-    </div>
-
-    <!-- 數字鍵盤 (簡化版計算功能) -->
-    <div class="numpad">
-        <button onclick="pressNum('7')">7</button><button onclick="pressNum('8')">8</button><button onclick="pressNum('9')">9</button><button onclick="pressClear()" style="color:red">C</button>
-        <button onclick="pressNum('4')">4</button><button onclick="pressNum('5')">5</button><button onclick="pressNum('6')">6</button><button onclick="pressNum('00')">00</button>
-        <button onclick="pressNum('1')">1</button><button onclick="pressNum('2')">2</button><button onclick="pressNum('3')">3</button><button onclick="pressNum('0')">0</button>
-    </div>
-
-    <!-- 類別選擇 -->
-    <div class="category-grid">
-        <button class="cat-btn" onclick="setCategory('飲食', this)">飲食</button>
-        <button class="cat-btn" onclick="setCategory('服裝', this)">服裝</button>
-        <button class="cat-btn" onclick="setCategory('用品', this)">用品</button>
-        <button class="cat-btn" onclick="setCategory('藥妝', this)">藥妝</button>
-        <button class="cat-btn" onclick="setCategory('交通', this)">交通</button>
-        <button class="cat-btn" onclick="setCategory('其他', this)">其他</button>
-    </div>
-
-    <button class="btn-main" onclick="addRecord()">確認紀錄</button>
-
-    <!-- 記帳歷史 -->
-    <div class="record-section">
-        <label>選擇日期查看：</label>
-        <input type="date" id="viewDate" onchange="renderRecords()">
-        
-        <div class="daily-summary">
-            <span>該日總計</span>
-            <span>$ <span id="dayTotal">0</span></span>
+    
+    <!-- 分頁一：換算主介面 -->
+    <div id="view-calc" class="view-section active">
+        <div class="header-controls">
+            <div class="date-picker-wrapper">
+                <button class="icon-btn" onclick="openDatePicker()">📅</button>
+                <input type="date" id="recordDate" onchange="syncDateChange()">
+            </div>
+            <h3 id="displayDateTitle">日幣換算記帳</h3>
+            <button class="icon-btn" onclick="toggleRate()" style="font-size:1.1rem;">⚙️</button>
         </div>
 
-        <table id="recordTable">
-            <thead>
-                <tr>
-                    <th>類別</th>
-                    <th>日幣</th>
-                    <th>台幣</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody id="recordBody">
-                <!-- 紀錄動態插入 -->
-            </tbody>
-        </table>
+        <div id="rateSection" style="display:none; margin-bottom:15px; background:var(--soft-beige); padding:10px; border-radius:10px; text-align:center;">
+            <span style="font-size:0.8rem;">匯率 1 JPY = </span>
+            <input type="number" id="exchangeRate" value="0.215" step="0.001" oninput="updateConverted()" style="width:70px; padding:4px;">
+            <span style="font-size:0.8rem;"> TWD</span>
+        </div>
+
+        <div class="calc-display">
+            <div class="calc-twd"><span class="label">TWD</span>$ <span id="twdDisplay">0</span></div>
+            <div class="calc-jpy" id="jpyDisplay">¥ 0</div>
+        </div>
+
+        <!-- 計算機佈局 -->
+        <div class="numpad">
+            <button class="btn-num" onclick="pressNum('7')">7</button>
+            <button class="btn-num" onclick="pressNum('8')">8</button>
+            <button class="btn-num" onclick="pressNum('9')">9</button>
+            <button class="btn-op" onclick="pressOp('+')">+</button>
+
+            <button class="btn-num" onclick="pressNum('4')">4</button>
+            <button class="btn-num" onclick="pressNum('5')">5</button>
+            <button class="btn-num" onclick="pressNum('6')">6</button>
+            <button class="btn-op" onclick="pressOp('-')">−</button>
+
+            <button class="btn-num" onclick="pressNum('1')">1</button>
+            <button class="btn-num" onclick="pressNum('2')">2</button>
+            <button class="btn-num" onclick="pressNum('3')">3</button>
+            <button class="btn-op" onclick="pressOp('*')">×</button>
+
+            <!-- 按鈕調換：C 在左，⌫ 在右 -->
+            <button class="btn-func btn-clear" onclick="pressClear()">C</button>
+            <button class="btn-num" onclick="pressNum('0')">0</button>
+            <button class="btn-func" onclick="pressBack()">⌫</button>
+            <button class="btn-num" onclick="pressNum('000')" style="font-size:1.1rem;">000</button>
+        </div>
+
+        <div class="category-grid">
+            <button class="cat-btn" onclick="setCategory('飲食', this)">飲食</button>
+            <button class="cat-btn" onclick="setCategory('服裝', this)">服裝</button>
+            <button class="cat-btn" onclick="setCategory('用品', this)">用品</button>
+            <button class="cat-btn" onclick="setCategory('藥妝', this)">藥妝</button>
+            <button class="cat-btn" onclick="setCategory('交通', this)">交通</button>
+            <button class="cat-btn" onclick="showCustomInput(this)">＋其他</button>
+        </div>
+        <input type="text" id="customCatInput" placeholder="自定義類別名稱" style="display:none; width:100%; padding:10px; margin-bottom:15px; border-radius:10px; border:1px solid #ddd; box-sizing:border-box;">
+
+        <button class="btn-confirm" onclick="addRecord()">確認紀錄並存檔</button>
+
+        <h4 id="listTitle" style="border-left:4px solid var(--primary-orange); padding-left:10px; margin-top:10px;">今日清單</h4>
+        <div id="calcDetailList"></div>
+    </div>
+
+    <!-- 分頁二：統計頁 -->
+    <div id="view-history" class="view-section">
+        <h3 style="margin-top:0; text-align:center;">📊 支出統計</h3>
+        <div class="date-tags" id="historyDateTags"></div>
+        <div class="summary-box">
+            <div style="font-size: 0.9rem; color: #888;">選取日期總計</div>
+            <div style="font-size: 2rem; font-weight: bold; color: var(--primary-orange);">$ <span id="historyTotalTWD">0</span></div>
+            <div style="font-size: 0.9rem; color: #aaa;">約 ¥ <span id="historyTotalJPY">0</span></div>
+        </div>
+        <div style="max-width:280px; margin: 0 auto 20px;"><canvas id="historyChart"></canvas></div>
+        <div id="historyDetailList"></div>
     </div>
 </div>
 
 <script>
-    let currentJPY = "0";
+    // 計算機邏輯變數
+    let currentInput = "0";
+    let memoryValue = 0;
+    let pendingOp = null;
+    let shouldResetInput = false;
+
     let selectedCategory = "";
-    let records = JSON.parse(localStorage.getItem('jpy_records')) || [];
+    let isCustom = false;
+    let records = JSON.parse(localStorage.getItem('jpy_trip_v9')) || [];
+    let historySelectedDates = []; 
+    let historyChart = null;
 
     // 初始化日期
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('viewDate').value = today;
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    document.getElementById('recordDate').value = todayStr;
 
-    function toggleRate() {
-        document.getElementById('rateSection').classList.toggle('hidden');
+    window.onload = () => { syncDateChange(); };
+
+    // 修復：開啟原生日曆選單
+    function openDatePicker() {
+        const dateInput = document.getElementById('recordDate');
+        if (dateInput.showPicker) {
+            dateInput.showPicker();
+        } else {
+            dateInput.focus();
+            dateInput.click();
+        }
     }
 
+    function showView(view, btn) {
+        document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('view-' + view).classList.add('active');
+        btn.classList.add('active');
+        if(view === 'history') renderHistoryTab();
+    }
+
+    // 計算機核心
     function pressNum(num) {
-        if (currentJPY === "0") currentJPY = num;
-        else currentJPY += num;
-        updateConverted();
+        if (currentInput === "0" || shouldResetInput) {
+            currentInput = num === "000" ? "0" : num;
+            shouldResetInput = false;
+        } else {
+            currentInput += num;
+        }
+        updateDisplay();
+    }
+
+    function pressOp(op) {
+        const val = parseFloat(currentInput);
+        if (pendingOp && !shouldResetInput) {
+            memoryValue = calculate(memoryValue, val, pendingOp);
+        } else {
+            memoryValue = val;
+        }
+        pendingOp = op;
+        shouldResetInput = true;
+        updateDisplay(memoryValue);
+    }
+
+    function calculate(a, b, op) {
+        if (op === '+') return a + b;
+        if (op === '-') return a - b;
+        if (op === '*') return a * b;
+        return b;
     }
 
     function pressClear() {
-        currentJPY = "0";
-        updateConverted();
+        currentInput = "0";
+        memoryValue = 0;
+        pendingOp = null;
+        shouldResetInput = false;
+        updateDisplay();
     }
 
-    function updateConverted() {
+    function pressBack() {
+        if (currentInput.length > 1) {
+            currentInput = currentInput.slice(0, -1);
+        } else {
+            currentInput = "0";
+        }
+        updateDisplay();
+    }
+
+    function updateDisplay(tempVal) {
+        const val = (tempVal !== undefined && shouldResetInput) ? tempVal : parseFloat(currentInput);
         const rate = parseFloat(document.getElementById('exchangeRate').value) || 0;
-        const jpy = parseFloat(currentJPY);
-        const twd = Math.round(jpy * rate);
-        
-        document.getElementById('jpyDisplay').innerText = jpy.toLocaleString();
-        document.getElementById('twdDisplay').innerText = twd.toLocaleString();
+        document.getElementById('jpyDisplay').innerText = "¥ " + val.toLocaleString();
+        document.getElementById('twdDisplay').innerText = Math.round(val * rate).toLocaleString();
+    }
+
+    function updateConverted() { updateDisplay(); }
+    function toggleRate() { const s = document.getElementById('rateSection'); s.style.display = (s.style.display === 'none') ? 'block' : 'none'; }
+    
+    function syncDateChange() { 
+        const selectedDate = document.getElementById('recordDate').value;
+        const displayLabel = selectedDate === todayStr ? "今日清單" : selectedDate + " 清單";
+        document.getElementById('listTitle').innerText = displayLabel;
+        renderCalcList(); 
     }
 
     function setCategory(cat, btn) {
-        selectedCategory = cat;
+        isCustom = false; selectedCategory = cat;
+        document.getElementById('customCatInput').style.display = 'none';
         document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
     }
 
-    function addRecord() {  
-        const jpy = parseFloat(currentJPY);
-        if (jpy <= 0) { alert("請輸入金額"); return; }
-        if (!selectedCategory) { alert("請選擇類別"); return; }
+    function showCustomInput(btn) {
+        isCustom = true;
+        document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('customCatInput').style.display = 'block';
+        document.getElementById('customCatInput').focus();
+    }
 
-        const rate = parseFloat(document.getElementById('exchangeRate').value) || 0;
-        const record = {
-            id: Date.now(),
-            date: document.getElementById('viewDate').value,
-            category: selectedCategory,
-            jpy: jpy,
-            twd: Math.round(jpy * rate)
-        };
-
-        records.push(record);
-        saveRecords();
-        renderRecords();
+    function addRecord() {
+        let finalJPY = parseFloat(currentInput);
+        // 如果還有沒算的符號，先算完
+        if (pendingOp && !shouldResetInput) {
+            finalJPY = calculate(memoryValue, finalJPY, pendingOp);
+        } else if (shouldResetInput) {
+            finalJPY = memoryValue;
+        }
         
-        // 重置輸入
+        if (finalJPY <= 0) { alert("請輸入金額"); return; }
+        const cat = isCustom ? document.getElementById('customCatInput').value.trim() : selectedCategory;
+        if (!cat) { alert("請選擇類別"); return; }
+        
+        const rate = parseFloat(document.getElementById('exchangeRate').value) || 0;
+        const targetDate = document.getElementById('recordDate').value;
+
+        records.push({ id: Date.now(), date: targetDate, category: cat, jpy: finalJPY, twd: Math.round(finalJPY * rate) });
+        save();
+        renderCalcList();
         pressClear();
     }
 
     function deleteRecord(id) {
-        records = records.filter(r => r.id !== id);
-        saveRecords();
-        renderRecords();
+        if (confirm("確定要刪除此筆紀錄嗎？")) {
+            records = records.filter(r => r.id !== id);
+            save();
+            renderCalcList();
+            if (document.getElementById('view-history').classList.contains('active')) renderHistoryTab();
+        }
     }
 
-    function saveRecords() {
-        localStorage.setItem('jpy_records', JSON.stringify(records));
-    }
-
-    function renderRecords() {
-        const targetDate = document.getElementById('viewDate').value;
-        const tbody = document.getElementById('recordBody');
-        const dayTotalSpan = document.getElementById('dayTotal');
-        
-        tbody.innerHTML = "";
-        let dayTotal = 0;
-
+    function renderCalcList() {
+        const targetDate = document.getElementById('recordDate').value;
+        const list = document.getElementById('calcDetailList');
         const filtered = records.filter(r => r.date === targetDate);
-        
-        filtered.forEach(r => {
-            dayTotal += r.twd;
-            const row = `<tr>
-                <td>${r.category}</td>
-                <td>¥${r.jpy.toLocaleString()}</td>
-                <td>$${r.twd.toLocaleString()}</td>
-                <td><button onclick="deleteRecord(${r.id})" style="color:red; border:none; background:none; cursor:pointer;">刪除</button></td>
-            </tr>`;
-            tbody.innerHTML += row;
-        });
-
-        dayTotalSpan.innerText = dayTotal.toLocaleString();
+        if(filtered.length === 0) { list.innerHTML = "<p style='text-align:center;color:#aaa;font-size:0.8rem;margin-top:15px;'>尚無紀錄</p>"; return; }
+        list.innerHTML = filtered.sort((a,b)=>b.id-a.id).map(r => `
+            <div class="record-item">
+                <div class="record-info">
+                    <div><b>${r.category}</b></div>
+                    <div style="display:flex; align-items:baseline; gap:10px;">
+                        <span class="record-jpy">¥${r.jpy.toLocaleString()}</span>
+                        <span class="record-twd">$${r.twd.toLocaleString()} TWD</span>
+                    </div>
+                </div>
+                <button class="btn-del-item" onclick="deleteRecord(${r.id})">刪除</button>
+            </div>
+        `).join('');
     }
 
-    // 初始渲染
-    renderRecords();
-</script>
+    // 統計頁
+    function renderHistoryTab() {
+        const tagContainer = document.getElementById('historyDateTags');
+        const uniqueDates = [...new Set(records.map(r => r.date))].sort().reverse();
+        tagContainer.innerHTML = uniqueDates.map(d => `<div class="date-tag ${historySelectedDates.includes(d) ? 'selected' : ''}" onclick="toggleHistoryDate('${d}')">${d}</div>`).join('');
+        updateHistoryStats();
+    }
 
+    function toggleHistoryDate(date) {
+        if(historySelectedDates.includes(date)) historySelectedDates = historySelectedDates.filter(d => d !== date);
+        else historySelectedDates.push(date);
+        renderHistoryTab();
+    }
+
+    function updateHistoryStats() {
+        const filtered = records.filter(r => historySelectedDates.includes(r.date));
+        const list = document.getElementById('historyDetailList');
+        let totalTWD = 0, totalJPY = 0, catStats = {};
+        filtered.forEach(r => {
+            totalTWD += r.twd; totalJPY += r.jpy;
+            catStats[r.category] = (catStats[r.category] || 0) + r.twd;
+        });
+        document.getElementById('historyTotalTWD').innerText = totalTWD.toLocaleString();
+        document.getElementById('historyTotalJPY').innerText = totalJPY.toLocaleString();
+        
+        const ctx = document.getElementById('historyChart').getContext('2d');
+        if(historyChart) historyChart.destroy();
+        if(Object.keys(catStats).length > 0) {
+            historyChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels: Object.keys(catStats), datasets: [{ data: Object.values(catStats), backgroundColor: ['#e67e22', '#8d6e63', '#d7ccc8', '#ffe0b2', '#5d4037'], borderWidth: 2 }] },
+                options: { plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+        list.innerHTML = filtered.sort((a,b)=>b.id-a.id).map(r => `
+            <div class="record-item">
+                <div class="record-info">
+                    <div style="font-size:0.85rem;"><b>${r.category}</b> <span style="color:#aaa;margin-left:5px;">${r.date}</span></div>
+                    <div style="display:flex; align-items:baseline; gap:10px;">
+                        <span class="record-jpy">¥${r.jpy.toLocaleString()}</span>
+                        <span class="record-twd">$${r.twd.toLocaleString()}</span>
+                    </div>
+                </div>
+                <button class="btn-del-item" onclick="deleteRecord(${r.id})">刪除</button>
+            </div>
+        `).join('');
+    }
+
+    function save() { localStorage.setItem('jpy_trip_v9', JSON.stringify(records)); }
+</script>
 </body>
 </html>
