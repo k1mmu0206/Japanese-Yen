@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>旅日助手 - 專業對帳版 V9</title>
+    <title>旅日助手 - 最終兼容版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -51,7 +51,7 @@
         .view-section { display: none; }
         .view-section.active { display: block; }
 
-        /* 頂部標題列 */
+        /* --- 日曆修復重點：透明疊加法 --- */
         .header-controls {
             display: grid;
             grid-template-columns: 50px 1fr 50px;
@@ -61,10 +61,19 @@
         .header-controls h3 { margin: 0; font-size: 1.1rem; text-align: center; color: var(--coffee-dark); }
         
         .date-picker-wrapper {
+            position: relative; /* 讓子元素可以絕對定位在上面 */
             display: flex; justify-content: center; align-items: center;
+            width: 40px; height: 40px;
         }
-        .icon-btn { background: none; border: none; font-size: 1.6rem; cursor: pointer; padding: 0; }
-        #recordDate { position: absolute; visibility: hidden; width: 0; height: 0; }
+        .icon-btn { font-size: 1.6rem; cursor: pointer; pointer-events: none; } /* 讓點擊穿透到 input */
+        #recordDate {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            opacity: 0; /* 變成透明 */
+            cursor: pointer;
+            -webkit-appearance: none; /* 修復 iOS 樣式 */
+        }
 
         /* 螢幕顯示 */
         .calc-display {
@@ -82,9 +91,9 @@
         .numpad button {
             padding: 18px 0; border: none; border-radius: 12px;
             display: flex; justify-content: center; align-items: center;
-            cursor: pointer; transition: 0.1s;
+            cursor: pointer;
         }
-        .numpad button:active { opacity: 0.6; transform: scale(0.95); }
+        .numpad button:active { opacity: 0.6; }
 
         .btn-num { background: var(--soft-beige); color: var(--coffee-dark); font-size: 1.5rem; font-weight: bold; }
         .btn-func { background: #e7e0da; color: var(--coffee-medium); font-size: 1rem; font-weight: bold; }
@@ -122,7 +131,6 @@
             padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; cursor: pointer;
         }
 
-        /* 統計頁 */
         .summary-box {
             background: var(--soft-beige); padding: 15px; border-radius: 15px; text-align: center; margin-bottom: 20px;
         }
@@ -140,21 +148,21 @@
 
 <div class="container">
     
-    <!-- 分頁一：換算主介面 -->
+    <!-- 分頁一：主介面 -->
     <div id="view-calc" class="view-section active">
         <div class="header-controls">
             <div class="date-picker-wrapper">
-                <button class="icon-btn" onclick="openDatePicker()">📅</button>
+                <span class="icon-btn">📅</span>
+                <!-- 透明的日期輸入框疊在圖示上面 -->
                 <input type="date" id="recordDate" onchange="syncDateChange()">
             </div>
             <h3 id="displayDateTitle">日幣換算記帳</h3>
-            <button class="icon-btn" onclick="toggleRate()" style="font-size:1.1rem;">⚙️</button>
+            <button class="icon-btn" onclick="toggleRate()" style="font-size:1.1rem; pointer-events: auto;">⚙️</button>
         </div>
 
         <div id="rateSection" style="display:none; margin-bottom:15px; background:var(--soft-beige); padding:10px; border-radius:10px; text-align:center;">
             <span style="font-size:0.8rem;">匯率 1 JPY = </span>
-            <input type="number" id="exchangeRate" value="0.215" step="0.001" oninput="updateConverted()" style="width:70px; padding:4px;">
-            <span style="font-size:0.8rem;"> TWD</span>
+            <input type="number" id="exchangeRate" value="0.215" step="0.001" oninput="updateConverted()" style="width:70px;">
         </div>
 
         <div class="calc-display">
@@ -162,7 +170,7 @@
             <div class="calc-jpy" id="jpyDisplay">¥ 0</div>
         </div>
 
-        <!-- 計算機佈局 -->
+        <!-- 計算機佈局優化 -->
         <div class="numpad">
             <button class="btn-num" onclick="pressNum('7')">7</button>
             <button class="btn-num" onclick="pressNum('8')">8</button>
@@ -179,7 +187,7 @@
             <button class="btn-num" onclick="pressNum('3')">3</button>
             <button class="btn-op" onclick="pressOp('*')">×</button>
 
-            <!-- 按鈕調換：C 在左，⌫ 在右 -->
+            <!-- 按鈕順序：全刪除 C | 0 | 刪除 ⌫ | 000 -->
             <button class="btn-func btn-clear" onclick="pressClear()">C</button>
             <button class="btn-num" onclick="pressNum('0')">0</button>
             <button class="btn-func" onclick="pressBack()">⌫</button>
@@ -217,7 +225,6 @@
 </div>
 
 <script>
-    // 計算機邏輯變數
     let currentInput = "0";
     let memoryValue = 0;
     let pendingOp = null;
@@ -229,22 +236,10 @@
     let historySelectedDates = []; 
     let historyChart = null;
 
-    // 初始化日期
     const todayStr = new Date().toLocaleDateString('en-CA');
     document.getElementById('recordDate').value = todayStr;
 
     window.onload = () => { syncDateChange(); };
-
-    // 修復：開啟原生日曆選單
-    function openDatePicker() {
-        const dateInput = document.getElementById('recordDate');
-        if (dateInput.showPicker) {
-            dateInput.showPicker();
-        } else {
-            dateInput.focus();
-            dateInput.click();
-        }
-    }
 
     function showView(view, btn) {
         document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
@@ -254,7 +249,7 @@
         if(view === 'history') renderHistoryTab();
     }
 
-    // 計算機核心
+    // 計算機邏輯
     function pressNum(num) {
         if (currentInput === "0" || shouldResetInput) {
             currentInput = num === "000" ? "0" : num;
@@ -293,11 +288,8 @@
     }
 
     function pressBack() {
-        if (currentInput.length > 1) {
-            currentInput = currentInput.slice(0, -1);
-        } else {
-            currentInput = "0";
-        }
+        if (currentInput.length > 1) currentInput = currentInput.slice(0, -1);
+        else currentInput = "0";
         updateDisplay();
     }
 
@@ -330,12 +322,10 @@
         document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById('customCatInput').style.display = 'block';
-        document.getElementById('customCatInput').focus();
     }
 
     function addRecord() {
         let finalJPY = parseFloat(currentInput);
-        // 如果還有沒算的符號，先算完
         if (pendingOp && !shouldResetInput) {
             finalJPY = calculate(memoryValue, finalJPY, pendingOp);
         } else if (shouldResetInput) {
@@ -383,7 +373,6 @@
         `).join('');
     }
 
-    // 統計頁
     function renderHistoryTab() {
         const tagContainer = document.getElementById('historyDateTags');
         const uniqueDates = [...new Set(records.map(r => r.date))].sort().reverse();
@@ -407,7 +396,6 @@
         });
         document.getElementById('historyTotalTWD').innerText = totalTWD.toLocaleString();
         document.getElementById('historyTotalJPY').innerText = totalJPY.toLocaleString();
-        
         const ctx = document.getElementById('historyChart').getContext('2d');
         if(historyChart) historyChart.destroy();
         if(Object.keys(catStats).length > 0) {
